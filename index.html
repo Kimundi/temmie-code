@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Temmie Code!</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js" type="text/javascript"
+        charset="utf-8"></script>
+    <link type="text/css" rel="stylesheet" href="turtle.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Nunito&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="wrap">
+        <h1>Temmie Code!</h1>
+        <div id="introduction">
+
+
+            <button class="collapsible">Show explanation</button>
+            <div class="content">
+                <p>
+                    Learning to code can be very hard, especially if you don't know the basics. Luckily, everything is
+                    easier with the help of Temmie!
+                </p>
+                <p>
+                    Imagine that Temmie suddenly became super smart, and learned a bunch of complicated commands, like
+                    holding a pen! Not only that, but Temmie also learned to do all commands that you've written down in
+                    a list,
+                    one after another!
+                </p>
+                <p>
+                    That's basically what coding is: Writing down a list of commands (the program code), and letting the
+                    computer do them one after another (executing the program). It just becomes very complicated in
+                    practice because there are a <em>lot</em> of things a computer can do.
+                </p>
+                <p>
+                    But enough about that, lets play around with Temmie! On the left you can see the commands that
+                    our virtual fuzzball knows how to do, and on the right you can write down a list of commands, which
+                    Temmie will then start doing in its play area in the middle.
+                </p>
+                <p>
+                    Stuff in brackets (&lt;x&gt;) indicates places where you would write a number. Per
+                    default, Temmie needs 1 second to do each command, but you can tell her to speed up. You can also
+                    use the buttons to reset the play area, start the list from the top, or look at an example list.
+                </p>
+                <p>
+                    You can try to get Temmie to draw something, like a triangle or a square. Ultimate challenge: Make
+                    Temmie draw herself!
+                </p>
+            </div>
+        </div>
+        <div id="leftcolumn">
+            <h4>Temmies commands!</h4>
+            <code>
+              bark <br/>
+              roll over <br/>
+              hide <br/>
+              show <br/>
+              run &lt;distance&gt; pixel forward <br/>
+              turn &lt;x&gt; degree right <br/>
+              turn &lt;x&gt; degree left <br/>
+              hold pen down <br/>
+              pick pen up <br/>
+              change speed to &lt;x&gt; <br/>
+              change pen width to &lt;x&gt; pixel <br/>
+              change pen color to &lt;r&gt; &lt;g&gt; &lt;b&gt; <br/>
+            </code>
+        </div> <!-- leftcolumn -->
+        <div id="midcolumn">
+            <h4>Temmies play area!</h4>
+            <canvas id="turtlecanvas" width="300" height="300"></canvas>
+            <canvas id="imagecanvas" width="300" height="300" style="display:none"></canvas>
+            <button id="resetButton">Start over</button>
+            <button id="replayButton">(Re)start list</button>
+            <button id="exampleButton">Show an example</button>
+        </div> <!-- midcolumn -->
+        <div id="rightcolumn">
+            <h4>Temmies list!</h4>
+            <textarea id="definitions" rows="30">
+            </textarea>
+            <input id="share_link" class="share_link" readonly="true"></input><button class="js-emailcopybtn">Copy
+                shareable
+                link</button>
+        </div> <!-- rightcolumn -->
+    </div> <!-- wrap-->
+    <script type="text/javascript" src="turtle.js"></script>
+</body>
+
+</html>

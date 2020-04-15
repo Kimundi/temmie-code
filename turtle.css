@@ -1,0 +1,98 @@
+body,
+html {
+   margin:0;
+   padding:0;
+   background:rgb(179, 234, 248);
+   font-family: 'Nunito', sans-serif;
+   color:rgb(27, 116, 138);
+}
+
+body h1 {
+   text-align:center;
+}
+
+#wrap {
+   width:1000px;
+   margin:0 auto;
+}
+
+#leftcolumn {
+   float:left;
+   width:30%;
+}
+
+#midcolumn {
+   float:left;
+   width:35%;
+}
+
+#rightcolumn {
+   float:right;
+   width:35%;
+}
+
+#turtlecanvas {
+/*   background:rgb(179, 234, 248);*/
+   background:rgb(224, 248, 255);
+   border: 5px solid rgb(27, 116, 138);
+}
+
+#definitions {
+   width:300px;
+}
+
+#command {
+   width:300px;
+}
+
+.myMarker {
+   position:absolute;
+   background:rgba(200, 100, 100, 0.5);
+   z-index:20
+}
+
+.myMarker2 {
+   position:absolute;
+   background:rgba(100, 200, 117, 0.5);
+   z-index:20
+}
+
+.collapsible {
+   background-color: #777;
+   color: white;
+   cursor: pointer;
+   padding: 18px;
+   width: 100%;
+   border: none;
+   text-align: left;
+   outline: none;
+   font-size: 15px;
+ }
+ 
+.active, .collapsible:hover {
+   background-color: #555;
+ }
+ 
+.collapsible:after {
+   content: '\002B';
+   color: white;
+   font-weight: bold;
+   float: right;
+   margin-left: 5px;
+ }
+ 
+.active:after {
+   content: "\2212";
+ }
+ 
+.content {
+   padding: 0 18px;
+   max-height: 0;
+   overflow: hidden;
+   transition: max-height 0.2s ease-out;
+   background-color: #f1f1f1;
+ }
+
+ #share_link {
+   resize: none;
+ }
