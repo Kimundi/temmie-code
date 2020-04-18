@@ -301,6 +301,20 @@ function roll(angle) {
     drawIf();
 }
 
+_peng_saved_image = undefined
+function peng() {
+    turtle.roll -= degToRad(90);
+    _peng_saved_image = turtle.image
+    turtle.image = turtle.images[2]
+    drawIf();
+}
+
+function unpeng() {
+    turtle.roll += degToRad(90);
+    turtle.image = _peng_saved_image
+    drawIf();
+}
+
 // write some text at the turtle position.
 // ideally we'd like this to rotate the text based on
 // the turtle orientation, but this will require some clever
@@ -359,6 +373,9 @@ function do_anim_command(line_no, cmd, ...args) {
 function do_early_command(line_no, cmd, ...args) {
     cmd_queue.push([line_no, cmd, args, "early"])
 }
+function do_set_reset_command(line_no, cmd, ...args) {
+    cmd_queue.push([line_no, cmd, args, "set_reset"])
+}
 function clear_commands() {
     reset_highlight_line();
     cmd_queue = []
@@ -389,9 +406,12 @@ function on_frame() {
 
         {
             var [cmd_timeout, cmd_line_no, cmd_fn, cmd_fn_args, cmd_animation_kind] = anime_cmd_queue[0];
-            if (anime_cmd_queue[0][0] === 1000 && cmd_animation_kind == "early") {
-
-                cmd_fn(...cmd_fn_args);
+            if (anime_cmd_queue[0][0] === 1000) {
+                if (cmd_animation_kind == "early") {
+                    cmd_fn(...cmd_fn_args);
+                } else if (cmd_animation_kind == "set_reset") {
+                    cmd_fn();
+                }
             }
         }
 
@@ -413,8 +433,12 @@ function on_frame() {
         if (cmd_animation_kind == "interpolate") {
             var step_arg = cmd_fn_args[0] * weighted_delta
             cmd_fn(step_arg);
-        } else if (cmd_timeout <= 0 && cmd_animation_kind == "late") {
-            cmd_fn(...cmd_fn_args);
+        } else if (cmd_timeout <= 0) {
+            if (cmd_animation_kind == "late") {
+                cmd_fn(...cmd_fn_args);
+            } else if (cmd_animation_kind == "set_reset") {
+                cmd_fn_args[0]();
+            }
         }
     }
 
@@ -457,6 +481,8 @@ function tem_parse(words, line_no) {
             do_command(line_no, change_speed, speed);
         } else if (words[0] == "roll" && words[1] == "over") {
             do_anim_command(line_no, roll, 360);
+        } else if (words[0] == "peng") {
+            do_set_reset_command(line_no, peng, unpeng);
         } else {
             throw "unknown command"
         }
@@ -517,29 +543,31 @@ $('#replayButton').click(function () {
 
 $('#exampleButton').click(function () {
     editor.getSession().setValue(
-        `hold pen down
+        `turn 20 degree right
+
+hold pen down
 
 run 100 pixel forward
 turn 90 degree left
 
-run 100 pixel forward
-turn 90 degree left
+bark
 
 run 100 pixel forward
 turn 90 degree left
 
+roll over
+
 run 100 pixel forward
 turn 90 degree left
+
+peng
+
+run 100 pixel forward
+turn 45 degree left
 
 pick pen up
 
-turn 45 degree right
-
 run 50 pixel forward
-bark
-
-run 50 pixel forward
-roll over
 
 hide
 `
