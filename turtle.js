@@ -365,36 +365,52 @@ function change_speed(speed) {
 
 cmd_queue = []
 function do_command(line_no, cmd, ...args) {
-    cmd_queue.push([line_no, cmd, args, "late"])
+    cmd_queue.push([1000, line_no, cmd, args, "late"])
 }
 function do_anim_command(line_no, cmd, ...args) {
-    cmd_queue.push([line_no, cmd, args, "interpolate"])
+    cmd_queue.push([1000, line_no, cmd, args, "interpolate"])
 }
 function do_early_command(line_no, cmd, ...args) {
-    cmd_queue.push([line_no, cmd, args, "early"])
+    cmd_queue.push([1000, line_no, cmd, args, "early"])
 }
 function do_set_reset_command(line_no, cmd, ...args) {
-    cmd_queue.push([line_no, cmd, args, "set_reset"])
+    cmd_queue.push([1000, line_no, cmd, args, "set_reset"])
 }
 function clear_commands() {
     reset_highlight_line();
     cmd_queue = []
 }
 
-anim_cmd_queue = []
-anim_cmd_pointer = 0
+anim_cmd_pointer = -1
+anim_timeout = 0
+function jump(idx) {
+    if (idx >= 0 && idx < cmd_queue.length) {
+        anim_cmd_pointer = idx
+        anim_timeout = cmd_queue[anim_cmd_pointer][0]
+    } else {
+        anim_cmd_pointer = -1
+        anim_timeout = 0
+    }
+    console.log(anim_timeout, anim_cmd_pointer, current_cmd())
+}
+function jump_next() {
+    if (anim_cmd_pointer >= 0) {
+        jump(anim_cmd_pointer + 1)
+    }
+}
+function current_cmd() {
+    if (anim_cmd_pointer >= 0) {
+        return cmd_queue[anim_cmd_pointer].slice(1)
+    } else {
+        return undefined
+    }
+}
 function stop_animate() {
-    anim_cmd_queue = []
+    jump(-1)
 }
 function noop() { }
 function start_animate() {
-    anim_cmd_queue = [[0, -1, noop, [], "late"]]
-    anim_cmd_pointer = 0
-    for (var i = 0; i < cmd_queue.length; i++) {
-        var [line_no, cmd, args, animation_kind] = cmd_queue[i]
-        anim_cmd_queue[i][1] = line_no
-        anim_cmd_queue.push([1000, -1, cmd, args, animation_kind])
-    }
+    jump(0)
 }
 
 last_time = Date.now()
@@ -402,45 +418,45 @@ function on_frame() {
     var this_time = Date.now()
     var delta = (this_time - last_time)
     last_time = this_time
-    if (anim_cmd_queue.length > 0) {
+    if (anim_cmd_pointer >= 0) {
         // decrease timeout till first command runs...
         var weighted_delta = (delta * turtle.speed) / 1000
 
-        {
-            var [cmd_timeout, cmd_line_no, cmd_fn, cmd_fn_args, cmd_animation_kind] = anim_cmd_queue[0];
-            if (anim_cmd_queue[0][0] === 1000) {
-                if (cmd_animation_kind == "early") {
-                    cmd_fn(...cmd_fn_args);
-                } else if (cmd_animation_kind == "set_reset") {
-                    cmd_fn();
-                }
+        var [cmd_line_no, cmd_fn, cmd_fn_args, cmd_animation_kind] = current_cmd();
+
+        if (anim_timeout === 1000) {
+            // highlight command
+            highlight_line(cmd_line_no)
+
+            if (cmd_animation_kind == "early") {
+                cmd_fn(...cmd_fn_args);
+            } else if (cmd_animation_kind == "set_reset") {
+                cmd_fn();
             }
         }
 
-        anim_cmd_queue[0][0] -= weighted_delta * 1000
-        var [cmd_timeout, cmd_line_no, cmd_fn, cmd_fn_args, cmd_animation_kind] = anim_cmd_queue[0];
+        anim_timeout -= weighted_delta * 1000
 
-        if (cmd_timeout <= 0) {
-            // pop command because we are done
-            anim_cmd_queue.shift();
-
-            // highlight next command
-            highlight_line(cmd_line_no)
-
+        if (anim_timeout <= 0) {
             // backcompensate delta
-            var overshoot_weighted_delta = (-cmd_timeout) / 1000
+            var overshoot_weighted_delta = (-anim_timeout) / 1000
             weighted_delta -= overshoot_weighted_delta
         }
 
         if (cmd_animation_kind == "interpolate") {
             var step_arg = cmd_fn_args[0] * weighted_delta
             cmd_fn(step_arg);
-        } else if (cmd_timeout <= 0) {
+        } else if (anim_timeout <= 0) {
             if (cmd_animation_kind == "late") {
                 cmd_fn(...cmd_fn_args);
             } else if (cmd_animation_kind == "set_reset") {
                 cmd_fn_args[0]();
             }
+        }
+
+        if (anim_timeout <= 0) {
+            // increment instruction counter (can still change by command)
+            jump_next();
         }
     }
 
