@@ -466,42 +466,57 @@ class Command {
         this.fn = fn
         return this
     }
-    do_anim(fn) {
+
+    anim_with(fn) {
         return this.with((line_no, ...args) => {
             do_anim_command(line_no, ...fn(...args))
         })
     }
-    do_early(fn) {
+    early_with(fn) {
         return this.with((line_no, ...args) => {
             do_early_command(line_no, ...fn(...args))
         })
     }
-    do_set_reset(fn) {
+    set_reset_with(fn) {
         return this.with((line_no, ...args) => {
             do_set_reset_command(line_no, ...fn(...args))
+        })
+    }
+
+    anim(...args) {
+        return this.with((line_no) => {
+            do_anim_command(line_no, ...args)
+        })
+    }
+    early(...args) {
+        return this.with((line_no) => {
+            do_early_command(line_no, ...args)
+        })
+    }
+    set_reset(...args) {
+        return this.with((line_no) => {
+            do_set_reset_command(line_no, ...args)
         })
     }
 }
 
 // Implementation of all commands
-var commands = [
-    new Command(/run (\d+) pixel forward/).do_anim((arg) => [forward, parseFloat(arg)]),
-    new Command(/turn (\d+) degree left/).do_anim((arg) => [left, parseFloat(arg)]),
-    new Command(/turn (\d+) degree right/).do_anim((arg) => [right, parseFloat(arg)]),
-    new Command(/bark/).do_early(() => [write, "bork!"]),
+const commands = [
+    new Command(/bark/).early(write, "bork!"),
+    new Command(/hide/).anim(hideTurtle, 100),
+    new Command(/show/).anim(showTurtle, 100),
+    new Command(/hold pen down/).early(pendown),
+    new Command(/pick pen up/).early(penup),
+    new Command(/peng/).set_reset(peng, unpeng),
+    new Command(/roll over/).anim(roll, 360),
 
-    new Command(/hide/).do_anim(() => [hideTurtle, 100]),
-    new Command(/show/).do_anim(() => [showTurtle, 100]),
+    new Command(/run (\d+) pixel forward/).anim_with((arg) => [forward, parseFloat(arg)]),
+    new Command(/turn (\d+) degree left/).anim_with((arg) => [left, parseFloat(arg)]),
+    new Command(/turn (\d+) degree right/).anim_with((arg) => [right, parseFloat(arg)]),
 
-    new Command(/hold pen down/).do_early(() => [pendown]),
-    new Command(/pick pen up/).do_early(() => [penup]),
-
-    new Command(/peng/).do_set_reset(() => [peng, unpeng]),
-    new Command(/roll over/).do_anim(() => [roll, 360]),
-
-    new Command(/change pen width to (\d+) pixel/).do_early((arg) => [width, parseFloat(arg)]),
-    new Command(/change pen color to (\d+) (\d+) (\d+)/).do_early((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
-    new Command(/change speed to (\d+)/).do_early((arg) => [change_speed, parseFloat(arg)]),
+    new Command(/change pen width to (\d+) pixel/).early_with((arg) => [width, parseFloat(arg)]),
+    new Command(/change pen color to (\d+) (\d+) (\d+)/).early_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
+    new Command(/change speed to (\d+)/).early_with((arg) => [change_speed, parseFloat(arg)]),
 ];
 
 function tem_parse(words, line_no) {
