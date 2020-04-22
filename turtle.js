@@ -381,17 +381,19 @@ function clear_commands() {
     cmd_queue = []
 }
 
-anime_cmd_queue = []
+anim_cmd_queue = []
+anim_cmd_pointer = 0
 function stop_animate() {
-    anime_cmd_queue = []
+    anim_cmd_queue = []
 }
 function noop() { }
 function start_animate() {
-    anime_cmd_queue = [[0, -1, noop, [], "late"]]
+    anim_cmd_queue = [[0, -1, noop, [], "late"]]
+    anim_cmd_pointer = 0
     for (var i = 0; i < cmd_queue.length; i++) {
         var [line_no, cmd, args, animation_kind] = cmd_queue[i]
-        anime_cmd_queue[i][1] = line_no
-        anime_cmd_queue.push([1000, -1, cmd, args, animation_kind])
+        anim_cmd_queue[i][1] = line_no
+        anim_cmd_queue.push([1000, -1, cmd, args, animation_kind])
     }
 }
 
@@ -400,13 +402,13 @@ function on_frame() {
     var this_time = Date.now()
     var delta = (this_time - last_time)
     last_time = this_time
-    if (anime_cmd_queue.length > 0) {
+    if (anim_cmd_queue.length > 0) {
         // decrease timeout till first command runs...
         var weighted_delta = (delta * turtle.speed) / 1000
 
         {
-            var [cmd_timeout, cmd_line_no, cmd_fn, cmd_fn_args, cmd_animation_kind] = anime_cmd_queue[0];
-            if (anime_cmd_queue[0][0] === 1000) {
+            var [cmd_timeout, cmd_line_no, cmd_fn, cmd_fn_args, cmd_animation_kind] = anim_cmd_queue[0];
+            if (anim_cmd_queue[0][0] === 1000) {
                 if (cmd_animation_kind == "early") {
                     cmd_fn(...cmd_fn_args);
                 } else if (cmd_animation_kind == "set_reset") {
@@ -415,12 +417,12 @@ function on_frame() {
             }
         }
 
-        anime_cmd_queue[0][0] -= weighted_delta * 1000
-        var [cmd_timeout, cmd_line_no, cmd_fn, cmd_fn_args, cmd_animation_kind] = anime_cmd_queue[0];
+        anim_cmd_queue[0][0] -= weighted_delta * 1000
+        var [cmd_timeout, cmd_line_no, cmd_fn, cmd_fn_args, cmd_animation_kind] = anim_cmd_queue[0];
 
         if (cmd_timeout <= 0) {
             // pop command because we are done
-            anime_cmd_queue.shift();
+            anim_cmd_queue.shift();
 
             // highlight next command
             highlight_line(cmd_line_no)
@@ -517,10 +519,14 @@ const commands = [
     new Command(/change pen width to (\d+) pixel/).early_with((arg) => [width, parseFloat(arg)]),
     new Command(/change pen color to (\d+) (\d+) (\d+)/).early_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
     new Command(/change speed to (\d+)/).early_with((arg) => [change_speed, parseFloat(arg)]),
+
+    new Command(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
+
+    }),
 ];
 
-function tem_parse(words, line_no) {
-    //console.log(words)
+function tem_parse(words, line_no, indent) {
+    console.log(indent)
 
     var line = words.join(" ")
 
@@ -549,12 +555,15 @@ function tem_parse(words, line_no) {
 var commandList = [];
 var currentCommand = 0;
 
+re_leading_ws = /\S|$/
+
 function run_tem_code(line, line_no) {
+    indent = line.search(re_leading_ws)
     var split_command = line.split(" ").filter(function (el) {
         return el != "";
     });
     if (split_command.length != 0) {
-        tem_parse(split_command, line_no)
+        tem_parse(split_command, line_no, indent)
     } else {
         // TODO: no command handler
     }
