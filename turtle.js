@@ -445,45 +445,87 @@ function on_frame() {
     requestAnimationFrame(on_frame);
 }
 
-// Translation table
+class Command {
+    constructor(re, fn) {
+        this.re = re;
+        this.fn = fn;
+    }
+    check(line_no, line) {
+        var chk = this.re.exec(line)
+        if (chk) {
+            var args = chk.slice(1)
+            this.exec(line_no, ...args)
+            return true;
+        }
+        return false;
+    }
+    exec(line_no, ...args) {
+        //console.log(args)
+        this.fn(line_no, ...args)
+    }
+}
+
+// Implementation of all commands
+var commands = [
+    new Command(/run (\d+) pixel forward/, (line_no, arg) => {
+        do_anim_command(line_no, forward, parseFloat(arg))
+    }),
+    new Command(/turn (\d+) degree left/, (line_no, arg) => {
+        var degree = parseFloat(arg)
+        do_anim_command(line_no, left, degree)
+    }),
+    new Command(/turn (\d+) degree right/, (line_no, arg) => {
+        var degree = parseFloat(arg)
+        do_anim_command(line_no, right, degree)
+    }),
+    new Command(/bark/, (line_no) => {
+        do_early_command(line_no, write, "bork!")
+    }),
+    new Command(/peng/, (line_no) => {
+        do_set_reset_command(line_no, peng, unpeng);
+    }),
+    new Command(/hide/, (line_no) => {
+        do_anim_command(line_no, hideTurtle, 100)
+    }),
+    new Command(/show/, (line_no) => {
+        do_anim_command(line_no, showTurtle, 100)
+    }),
+    new Command(/hold pen down/, (line_no) => {
+        do_early_command(line_no, pendown);
+    }),
+    new Command(/pick pen up/, (line_no) => {
+        do_early_command(line_no, penup);
+    }),
+    new Command(/roll over/, (line_no) => {
+        do_anim_command(line_no, roll, 360);
+    }),
+    new Command(/change pen width to (\d+) pixel/, (line_no, arg) => {
+        var w = parseFloat(arg)
+        do_command(line_no, width, w);
+    }),
+    new Command(/change pen color to (\d+) (\d+) (\d+)/, (line_no, r, g, b) => {
+        var r = parseInt(r)
+        var g = parseInt(g)
+        var b = parseInt(b)
+        do_command(line_no, color, r, g, b, 255);
+    }),
+    new Command(/change speed to (\d+)/, (line_no, arg) => {
+        var speed = parseFloat(arg)
+        do_command(line_no, change_speed, speed);
+    }),
+];
+
 function tem_parse(words, line_no) {
     //console.log(words)
+
+    var line = words.join(" ")
+
     try {
-        if (words[0] == "run" && words[2] == "pixel" && words[3] == "forward") {
-            var distance = parseFloat(words[1])
-            do_anim_command(line_no, forward, distance)
-        } else if (words[0] == "turn" && words[2] == "degree" && words[3] == "left") {
-            var degree = parseFloat(words[1])
-            do_anim_command(line_no, left, degree)
-        } else if (words[0] == "turn" && words[2] == "degree" && words[3] == "right") {
-            var degree = parseFloat(words[1])
-            do_anim_command(line_no, right, degree)
-        } else if (words[0] == "bark") {
-            do_early_command(line_no, write, "bork!")
-        } else if (words[0] == "hold" && words[1] == "pen" && words[2] == "down") {
-            do_early_command(line_no, pendown);
-        } else if (words[0] == "pick" && words[1] == "pen" && words[2] == "up") {
-            do_early_command(line_no, penup);
-        } else if (words[0] == "change" && words[1] == "pen" && words[2] == "width" && words[3] == "to" && words[5] == "pixel") {
-            var w = parseFloat(words[4])
-            do_command(line_no, width, w);
-        } else if (words[0] == "change" && words[1] == "pen" && words[2] == "color" && words[3] == "to") {
-            var r = parseInt(words[4])
-            var g = parseInt(words[5])
-            var b = parseInt(words[6])
-            do_command(line_no, color, r, g, b, 255);
-        } else if (words[0] == "hide") {
-            do_anim_command(line_no, hideTurtle, 100);
-        } else if (words[0] == "show") {
-            do_anim_command(line_no, showTurtle, 100);
-        } else if (words[0] == "change" && words[1] == "speed" && words[2] == "to") {
-            var speed = parseFloat(words[3])
-            do_command(line_no, change_speed, speed);
-        } else if (words[0] == "roll" && words[1] == "over") {
-            do_anim_command(line_no, roll, 360);
-        } else if (words[0] == "peng") {
-            do_set_reset_command(line_no, peng, unpeng);
-        } else {
+        var executed = false;
+        commands.forEach(command => {
+            executed |= command.check(line_no, line)
+        });
+        if (!executed) {
             throw "unknown command"
         }
     } catch (e) {
