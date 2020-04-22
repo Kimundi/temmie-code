@@ -391,11 +391,12 @@ function jump(idx) {
         anim_cmd_pointer = -1
         anim_timeout = 0
     }
-    console.log(anim_timeout, anim_cmd_pointer, current_cmd())
 }
 function jump_next() {
     if (anim_cmd_pointer >= 0) {
         jump(anim_cmd_pointer + 1)
+    } else {
+        jump(-1)
     }
 }
 function current_cmd() {
@@ -458,6 +459,8 @@ function on_frame() {
             // increment instruction counter (can still change by command)
             jump_next();
         }
+    } else {
+        reset_highlight_line()
     }
 
     requestAnimationFrame(on_frame);
