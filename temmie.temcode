@@ -27,15 +27,15 @@ repeat this sublist 2 times:
     
     hold pen down
     
-    run 60 pixel forward
+    run 65 pixel forward
     turn 180 degree left
-    run 60 pixel forward
+    run 65 pixel forward
     
     turn 120 degree right
     
-    run 60 pixel forward
+    run 65 pixel forward
     turn 180 degree left
-    run 60 pixel forward
+    run 65 pixel forward
     
     pick pen up
     
@@ -84,4 +84,24 @@ hold pen down
 change pen width to 15 pixel
 run 1 pixel forward
 change pen width to 5 pixel
+
+turn 30 degree right
+run 20 pixel forward
+turn 180 degree right
+run 20 pixel forward
+turn 30 degree left
+
+turn 150 degree right
+run 20 pixel forward
+turn 180 degree right
+run 20 pixel forward
+
 pick pen up
+
+turn 30 degree right
+
+change speed to 1
+run 80 pixel forward
+roll over
+hide
+
