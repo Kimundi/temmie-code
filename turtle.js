@@ -492,16 +492,17 @@ class EnterExitInstruction extends Instruction {
     }
 }
 class AnimateInstruction extends Instruction {
-    constructor(fn, param) {
+    constructor(fn, param, time) {
         super();
         this.fn = fn
         this.param = param
+        this.time = time
     }
     on_animate(machine, delta) {
         (this.fn)(this.param * delta)
     }
     animation_time() {
-        return 1
+        return this.time
     }
 }
 class RepeatStartInstruction extends Instruction {
@@ -518,9 +519,8 @@ class RepeatStartInstruction extends Instruction {
         }
         machine.top().loop_jump_back[this.key] = {
             ip: machine.ip,
-            repeats: this.repeats - 1
+            repeats: this.repeats
         }
-        console.log(machine.top())
     }
     animation_time() {
         return 1
@@ -535,7 +535,7 @@ class RepeatEndInstruction extends Instruction {
     }
     on_exit(machine) {
         var ctx = machine.top().loop_jump_back[this.key]
-        if (ctx.repeats > 0) {
+        if (ctx.repeats > 1) {
             machine.ip = ctx.ip
             ctx.repeats -= 1;
         }
@@ -555,84 +555,60 @@ class CommandParser {
         var chk = this.re.exec(line)
         if (chk) {
             var args = chk.slice(1)
-            return this.fn(line_no, ...args)
+            return this.fn(...args)
         }
         return {
             type: "wrong_command"
         };
     }
 
-    anim_command(cmd, arg) {
-        return {
+    anim_with(cmd, time, fn) {
+        return this.with((...re_groups) => ({
             type: "single_command",
-            command: new AnimateInstruction(cmd, arg)
-        }
+            command: new AnimateInstruction(cmd, fn(...re_groups), time)
+        }))
     }
-    enter_command(cmd, ...args) {
-        return {
+    anim(cmd, time, arg) {
+        return this.anim_with(cmd, time, (...re_groups) => arg)
+    }
+
+    enter_with(cmd, fn) {
+        return this.with((...re_groups) => ({
             type: "single_command",
-            command: new EnterInstruction(cmd, ...args)
-        }
+            command: new EnterInstruction(cmd, ...fn(...re_groups))
+        }))
     }
-    enter_exit_command(cmd1, cmd2) {
-        return {
+    enter(cmd, ...args) {
+        return this.enter_with(cmd, (...re_groups) => args)
+    }
+
+    enter_exit(cmd1, cmd2) {
+        return this.with((...re_groups) => ({
             type: "single_command",
             command: new EnterExitInstruction(cmd1, cmd2)
-        }
-    }
-
-    anim_with(cmd, fn) {
-        return this.with((line_no, ...args) => {
-            return this.anim_command(cmd, fn(...args))
-        })
-    }
-    enter_with(cmd, fn) {
-        return this.with((line_no, ...args) => {
-            return this.enter_command(cmd, ...fn(...args))
-        })
-    }
-    enter_exit_with(cmd, fn) {
-        return this.with((line_no, ...args) => {
-            return this.enter_exit_command(cmd, ...fn(...args))
-        })
-    }
-
-    anim(...args) {
-        return this.with((line_no) => {
-            return this.anim_command(...args)
-        })
-    }
-    enter(...args) {
-        return this.with((line_no) => {
-            return this.enter_command(...args)
-        })
-    }
-    enter_exit(...args) {
-        return this.with((line_no) => {
-            return this.enter_exit_command(...args)
-        })
+        }))
     }
 }
 
 // Implementation of all commands
 const command_parsers = [
     new CommandParser(/bark/).enter(write, "bork!"),
-    new CommandParser(/hide/).anim(hideTurtle, 100),
-    new CommandParser(/show/).anim(showTurtle, 100),
+    new CommandParser(/hide/).anim(hideTurtle, 1, 100),
+    new CommandParser(/show/).anim(showTurtle, 1, 100),
     new CommandParser(/hold pen down/).enter(pendown),
     new CommandParser(/pick pen up/).enter(penup),
     new CommandParser(/peng/).enter_exit(peng, unpeng),
-    new CommandParser(/roll over/).anim(roll, 360),
+    new CommandParser(/roll over/).anim(roll, 1, 360),
 
-    new CommandParser(/run (\d+) pixel forward/).anim_with(forward, parseFloat),
-    new CommandParser(/turn (\d+) degree left/).anim_with(left, parseFloat),
-    new CommandParser(/turn (\d+) degree right/).anim_with(right, parseFloat),
+    new CommandParser(/run (\d+) pixel forward/).anim_with(forward, 1, parseFloat),
+    new CommandParser(/turn (\d+) degree left/).anim_with(left, 1, parseFloat),
+    new CommandParser(/turn (\d+) degree right/).anim_with(right, 1, parseFloat),
 
     new CommandParser(/change pen width to (\d+) pixel/).enter_with(width, (arg) => [parseFloat(arg)]),
     new CommandParser(/change pen color to (\d+) (\d+) (\d+)/).enter_with(color, (r, g, b) => [parseInt(r), parseInt(g), parseInt(b), 255]),
     new CommandParser(/change speed to (\d+)/).enter_with(change_speed, (arg) => [parseFloat(arg)]),
 
-    new CommandParser(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
+    new CommandParser(/repeat this sublist (\d+) times:/).with((arg) => {
         var repeats = parseInt(arg)
         return {
             type: "block_command",
@@ -721,7 +697,6 @@ function parse_normalized_text_line(line, line_no, indent) {
 
 function parse_text_line(line, line_no) {
     indent = leading_ws(line)
-    console.log("indent: " + indent)
 
     var split_command = line.split(" ").filter(function (el) {
         return el != "";
