@@ -427,6 +427,7 @@ class Machine {
     jump() {
         if (this.ip_valid()) {
             var cur = this.code[this.ip]
+            console.assert(this.top().remaining_time == 0)
             this.top().remaining_time = cur.animation_time()
             this.top().fresh_jump = true
             this.show_instruction_highlight(cur)
@@ -492,14 +493,15 @@ class EnterExitInstruction extends Instruction {
     }
 }
 class AnimateInstruction extends Instruction {
-    constructor(fn, param, time) {
+    constructor(fn, param, unit_param) {
         super();
         this.fn = fn
         this.param = param
-        this.time = time
+        this.time = param / unit_param
     }
     on_animate(machine, delta) {
-        (this.fn)(this.param * delta)
+        var lerp = delta / this.animation_time();
+        (this.fn)(this.param * lerp);
     }
     animation_time() {
         return this.time
@@ -562,14 +564,14 @@ class CommandParser {
         };
     }
 
-    anim_with(cmd, time, fn) {
+    anim_with(cmd, fn) {
         return this.with((...re_groups) => ({
             type: "single_command",
-            command: new AnimateInstruction(cmd, fn(...re_groups), time)
+            command: new AnimateInstruction(cmd, ...fn(...re_groups))
         }))
     }
-    anim(cmd, time, arg) {
-        return this.anim_with(cmd, time, (...re_groups) => arg)
+    anim(cmd, arg, unit_arg) {
+        return this.anim_with(cmd, (...re_groups) => [arg, unit_arg])
     }
 
     enter_with(cmd, fn) {
@@ -593,16 +595,25 @@ class CommandParser {
 // Implementation of all commands
 const command_parsers = [
     new CommandParser(/bark/).enter(write, "bork!"),
-    new CommandParser(/hide/).anim(hideTurtle, 1, 100),
-    new CommandParser(/show/).anim(showTurtle, 1, 100),
+    new CommandParser(/hide/).anim(hideTurtle, 100, 100),
+    new CommandParser(/show/).anim(showTurtle, 100, 100),
     new CommandParser(/hold pen down/).enter(pendown),
     new CommandParser(/pick pen up/).enter(penup),
     new CommandParser(/peng/).enter_exit(peng, unpeng),
-    new CommandParser(/roll over/).anim(roll, 1, 360),
+    new CommandParser(/roll over/).anim(roll, 360, 360),
 
-    new CommandParser(/run (\d+) pixel forward/).anim_with(forward, 1, parseFloat),
-    new CommandParser(/turn (\d+) degree left/).anim_with(left, 1, parseFloat),
-    new CommandParser(/turn (\d+) degree right/).anim_with(right, 1, parseFloat),
+    new CommandParser(/run (\d+) pixel forward/).anim_with(forward, (re_group) => {
+        var arg = parseFloat(re_group)
+        return [arg, 100]
+    }),
+    new CommandParser(/turn (\d+) degree left/).anim_with(left, (re_group) => {
+        var arg = parseFloat(re_group)
+        return [arg, 90]
+    }),
+    new CommandParser(/turn (\d+) degree right/).anim_with(right, (re_group) => {
+        var arg = parseFloat(re_group)
+        return [arg, 90]
+    }),
 
     new CommandParser(/change pen width to (\d+) pixel/).enter_with(width, (arg) => [parseFloat(arg)]),
     new CommandParser(/change pen color to (\d+) (\d+) (\d+)/).enter_with(color, (r, g, b) => [parseInt(r), parseInt(g), parseInt(b), 255]),
