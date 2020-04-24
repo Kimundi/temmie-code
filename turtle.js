@@ -657,13 +657,17 @@ class ParseCtx {
         }
     }
 
-    handle_parsed_command_with_indent(res, line_no, indent) {
-        while (indent <= this.ctrl_top().indent) {
+    handle_end_of_ctrl_blocks(next_indent) {
+        while (next_indent <= this.ctrl_top().indent) {
             var prev_top = this.ctrl_stack.pop()
             if (prev_top.end_command != undefined) {
                 machine.push_instruction(prev_top.end_command)
             }
         }
+    }
+
+    handle_parsed_command_with_indent(res, line_no, indent) {
+        this.handle_end_of_ctrl_blocks(indent)
         this.handle_parsed_command(res, line_no, indent)
     }
 
@@ -734,6 +738,8 @@ function parse_text_area(definitionsText) {
             err_lines.push(l)
         } finally { l += 1; }
     });
+    parse_ctx.handle_end_of_ctrl_blocks(0)
+
     return { trimmed_text: definitionsText.trimRight(), err_lines: err_lines }
 }
 
