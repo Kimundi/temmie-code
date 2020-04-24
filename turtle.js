@@ -502,7 +502,7 @@ function add_set_reset_command(line_no, cmd, ...args) {
     cmd_queue.push([1000, line_no, cmd, args, "set_reset"])
 }
 
-class Command {
+class CommandParser {
     constructor(re) {
         this.re = re;
     }
@@ -559,24 +559,24 @@ class Command {
 
 
 // Implementation of all commands
-const commands = [
-    new Command(/bark/).early(write, "bork!"),
-    new Command(/hide/).anim(hideTurtle, 100),
-    new Command(/show/).anim(showTurtle, 100),
-    new Command(/hold pen down/).early(pendown),
-    new Command(/pick pen up/).early(penup),
-    new Command(/peng/).set_reset(peng, unpeng),
-    new Command(/roll over/).anim(roll, 360),
+const command_parsers = [
+    new CommandParser(/bark/).early(write, "bork!"),
+    new CommandParser(/hide/).anim(hideTurtle, 100),
+    new CommandParser(/show/).anim(showTurtle, 100),
+    new CommandParser(/hold pen down/).early(pendown),
+    new CommandParser(/pick pen up/).early(penup),
+    new CommandParser(/peng/).set_reset(peng, unpeng),
+    new CommandParser(/roll over/).anim(roll, 360),
 
-    new Command(/run (\d+) pixel forward/).anim_with((arg) => [forward, parseFloat(arg)]),
-    new Command(/turn (\d+) degree left/).anim_with((arg) => [left, parseFloat(arg)]),
-    new Command(/turn (\d+) degree right/).anim_with((arg) => [right, parseFloat(arg)]),
+    new CommandParser(/run (\d+) pixel forward/).anim_with((arg) => [forward, parseFloat(arg)]),
+    new CommandParser(/turn (\d+) degree left/).anim_with((arg) => [left, parseFloat(arg)]),
+    new CommandParser(/turn (\d+) degree right/).anim_with((arg) => [right, parseFloat(arg)]),
 
-    new Command(/change pen width to (\d+) pixel/).early_with((arg) => [width, parseFloat(arg)]),
-    new Command(/change pen color to (\d+) (\d+) (\d+)/).early_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
-    new Command(/change speed to (\d+)/).early_with((arg) => [change_speed, parseFloat(arg)]),
+    new CommandParser(/change pen width to (\d+) pixel/).early_with((arg) => [width, parseFloat(arg)]),
+    new CommandParser(/change pen color to (\d+) (\d+) (\d+)/).early_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
+    new CommandParser(/change speed to (\d+)/).early_with((arg) => [change_speed, parseFloat(arg)]),
 
-    new Command(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
+    new CommandParser(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
         var next_idx = cmd_queue.length
 
     }),
@@ -589,7 +589,7 @@ function tem_parse(words, line_no, indent) {
 
     try {
         var executed = false;
-        commands.forEach(command => {
+        command_parsers.forEach(command => {
             executed |= command.check(line_no, line, indent)
         });
         if (!executed) {
