@@ -637,7 +637,13 @@ const command_parsers = [
 
 class ParseCtx {
     constructor() {
-        this.last_indent = 0
+        this.ctrl_stack = [
+            { indent: -1 }
+        ]
+    }
+
+    ctrl_top() {
+        return this.ctrl_stack[this.ctrl_stack.length - 1]
     }
 
     parse_line(line, line_no, indent) {
@@ -658,10 +664,16 @@ class ParseCtx {
     }
 
     handle_parsed_command_with_indent(res, line_no, indent) {
-        this.handle_parsed_command(res, line_no)
+        while (indent <= this.ctrl_top().indent) {
+            var prev_top = this.ctrl_stack.pop()
+            if (prev_top.end_command != undefined) {
+                machine.push_instruction(prev_top.end_command)
+            }
+        }
+        this.handle_parsed_command(res, line_no, indent)
     }
 
-    handle_parsed_command(res, line_no) {
+    handle_parsed_command(res, line_no, indent) {
         if (res.type == "single_command") {
             machine.push_instruction(res.command.at_line_no(line_no))
         } else if (res.type == "block_command") {
@@ -672,6 +684,10 @@ class ParseCtx {
             end_cmd.set_block_ctx_key(line_no)
 
             machine.push_instruction(start_cmd)
+            this.ctrl_stack.push({
+                indent: indent,
+                end_command: end_cmd
+            })
         }
     }
 
