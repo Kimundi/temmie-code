@@ -516,7 +516,10 @@ class RepeatStartInstruction extends Instruction {
         if (machine.top().loop_jump_back == undefined) {
             machine.top().loop_jump_back = {}
         }
-        machine.top().loop_jump_back[this.key] = machine.ip
+        machine.top().loop_jump_back[this.key] = {
+            ip: machine.ip,
+            repeats: this.repeats - 1
+        }
         console.log(machine.top())
     }
     animation_time() {
@@ -531,7 +534,11 @@ class RepeatEndInstruction extends Instruction {
         this.key = key
     }
     on_exit(machine) {
-        machine.ip = machine.top().loop_jump_back[this.key]
+        var ctx = machine.top().loop_jump_back[this.key]
+        if (ctx.repeats > 0) {
+            machine.ip = ctx.ip
+            ctx.repeats -= 1;
+        }
     }
 }
 
@@ -630,7 +637,7 @@ const command_parsers = [
         return {
             type: "block_command",
             start_command: new RepeatStartInstruction(repeats),
-            end_command: new RepeatEndInstruction(),
+            end_command: new RepeatEndInstruction(repeats),
         }
     }),
 ];
