@@ -392,7 +392,7 @@ class Machine {
     }
     start_program() {
         if (this.code.length > 0) {
-            this.set_ip(0)
+            this.ip = 0
             this.jump()
         } else {
             this.reset_machine()
@@ -436,6 +436,9 @@ class Machine {
             this.reset_machine()
         }
     }
+    push_instruction(ins) {
+        this.code.push(ins)
+    }
 }
 machine = new Machine()
 
@@ -450,15 +453,20 @@ class Instruction {
 }
 class EnterInstruction extends Instruction {
     constructor(fn, ...params) {
+        super();
         this.fn = fn
         this.params = params
     }
     on_enter(machine) {
         (this.fn)(...this.params)
     }
+    animation_time() {
+        return 1
+    }
 }
 class EnterExitInstruction extends Instruction {
     constructor(fn1, fn2) {
+        super();
         this.fn1 = fn1
         this.fn2 = fn2
     }
@@ -468,14 +476,21 @@ class EnterExitInstruction extends Instruction {
     on_exit(machine) {
         (this.fn2)()
     }
+    animation_time() {
+        return 1
+    }
 }
 class AnimateInstruction extends Instruction {
     constructor(fn, param) {
+        super();
         this.fn = fn
         this.param = param
     }
     on_animate(machine, delta) {
         (this.fn)(this.param * delta)
+    }
+    animation_time() {
+        return 1
     }
 }
 
@@ -483,23 +498,15 @@ class AnimateInstruction extends Instruction {
 
 /////////////////////// old style machine
 
-cmd_queue = []
-cmd_stack = []
 
-function clear_commands() {
-    reset_highlight_line();
-    cmd_queue = []
-    cmd_stack = []
-}
-
-function add_anim_command(line_no, cmd, ...args) {
-    cmd_queue.push([1000, line_no, cmd, args, "interpolate"])
+function add_anim_command(line_no, cmd, arg) {
+    machine.push_instruction(new AnimateInstruction(cmd, arg))
 }
 function add_early_command(line_no, cmd, ...args) {
-    cmd_queue.push([1000, line_no, cmd, args, "early"])
+    machine.push_instruction(new EnterInstruction(cmd, ...args))
 }
-function add_set_reset_command(line_no, cmd, ...args) {
-    cmd_queue.push([1000, line_no, cmd, args, "set_reset"])
+function add_set_reset_command(line_no, cmd1, cmd2) {
+    machine.push_instruction(new EnterExitInstruction(cmd1, cmd2))
 }
 
 class CommandParser {
@@ -557,104 +564,6 @@ class CommandParser {
     }
 }
 
-
-
-
-anim_cmd_pointer = -1
-anim_timeout = 0
-function jump(idx) {
-    if (idx >= 0 && idx < cmd_queue.length) {
-        anim_cmd_pointer = idx
-        anim_timeout = cmd_queue[anim_cmd_pointer][0]
-    } else {
-        anim_cmd_pointer = -1
-        anim_timeout = 0
-    }
-}
-function jump_next() {
-    if (anim_cmd_pointer >= 0) {
-        jump(anim_cmd_pointer + 1)
-    } else {
-        jump(-1)
-    }
-}
-function current_cmd() {
-    if (anim_cmd_pointer >= 0) {
-        return cmd_queue[anim_cmd_pointer].slice(1)
-    } else {
-        return undefined
-    }
-}
-function stop_animate() {
-    jump(-1)
-}
-function noop() { }
-function start_animate() {
-    jump(0)
-}
-
-last_time = Date.now()
-function on_frame() {
-    var this_time = Date.now()
-    var delta = (this_time - last_time)
-    last_time = this_time
-
-    var speeded_delta = (delta * turtle.speed) / 1000
-
-    if (anim_cmd_pointer >= 0) {
-        var weighted_delta = speeded_delta
-
-        // decrease timeout till first command runs...
-        console.log(weighted_delta)
-
-        var [cmd_line_no, cmd_fn, cmd_fn_args, cmd_animation_kind] = current_cmd();
-
-        if (anim_timeout === 1000) {
-            // highlight command
-            highlight_line(cmd_line_no)
-
-            if (cmd_animation_kind == "early") {
-                cmd_fn(...cmd_fn_args);
-            } else if (cmd_animation_kind == "set_reset") {
-                cmd_fn();
-            }
-        }
-
-        anim_timeout -= weighted_delta * 1000
-
-        if (anim_timeout <= 0) {
-            // backcompensate delta
-            var overshoot_weighted_delta = (-anim_timeout) / 1000
-            weighted_delta -= overshoot_weighted_delta
-        }
-
-        if (cmd_animation_kind == "interpolate") {
-            var step_arg = cmd_fn_args[0] * weighted_delta
-            cmd_fn(step_arg);
-        } else if (anim_timeout <= 0) {
-            if (cmd_animation_kind == "late") {
-                cmd_fn(...cmd_fn_args);
-            } else if (cmd_animation_kind == "set_reset") {
-                cmd_fn_args[0]();
-            }
-        }
-
-        if (anim_timeout <= 0) {
-            // increment instruction counter (can still change by command)
-            jump_next();
-        }
-    } else {
-        reset_highlight_line()
-    }
-
-    requestAnimationFrame(on_frame);
-}
-function kickoff_first_frame() {
-    last_time = Date.now()
-    requestAnimationFrame(on_frame);
-}
-
-
 // Implementation of all commands
 const command_parsers = [
     new CommandParser(/bark/).early(write, "bork!"),
@@ -674,7 +583,6 @@ const command_parsers = [
     new CommandParser(/change speed to (\d+)/).early_with((arg) => [change_speed, parseFloat(arg)]),
 
     new CommandParser(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
-        var next_idx = cmd_queue.length
 
     }),
 ];
@@ -719,7 +627,7 @@ function parse_text_area(definitionsText) {
     var err_lines = []
 
     reset();
-    clear_commands();
+    machine.stop_program();
     definitionsText.split(/[\r\n]/g).forEach(element => {
         try {
             parse_text_line(element, l)
@@ -736,11 +644,24 @@ function parse_text_area(definitionsText) {
 //////////////////
 
 
+last_time = Date.now()
+function on_frame() {
+    var this_time = Date.now()
+    var delta = (this_time - last_time)
+    last_time = this_time
+
+    var speeded_delta = (delta * turtle.speed) / 1000
+    machine.on_total_time_delta(speeded_delta)
+    requestAnimationFrame(on_frame);
+}
+function kickoff_first_frame() {
+    last_time = Date.now()
+    requestAnimationFrame(on_frame);
+}
 
 $('#resetButton').click(function () {
     reset();
-    clear_commands();
-    stop_animate();
+    machine.stop_program();
 });
 
 $('#replayButton').click(function () {
@@ -784,9 +705,9 @@ var Range = ace.require('ace/range').Range;
 _markers = []
 
 function rerun_editor() {
-    stop_animate();
+    machine.stop_program();
     var ctx = parse_text_area(editor.getSession().getValue());
-    start_animate();
+    machine.start_program();
 
     _markers.forEach(element => {
         editor.session.removeMarker(element);
