@@ -387,9 +387,6 @@ class Machine {
     ip_valid() {
         return (this.ip >= 0 && this.ip < this.code.length)
     }
-    show_program_stopped() {
-        reset_highlight_line()
-    }
     start_program() {
         if (this.code.length > 0) {
             this.ip = 0
@@ -432,6 +429,7 @@ class Machine {
             var cur = this.code[this.ip]
             this.top().remaining_time = cur.animation_time()
             this.top().fresh_jump = true
+            this.show_instruction_highlight(cur)
         } else {
             this.reset_machine()
         }
@@ -439,11 +437,24 @@ class Machine {
     push_instruction(ins) {
         this.code.push(ins)
     }
+
+    show_program_stopped() {
+        reset_highlight_line()
+    }
+    show_instruction_highlight(ins) {
+        highlight_line(ins.line_no)
+    }
 }
 machine = new Machine()
 
 class Instruction {
-    constructor() { }
+    constructor() {
+        this.line_no = -1
+    }
+    at_line_no(line_no) {
+        this.line_no = line_no
+        return this
+    }
     on_enter(machine) { }
     on_animate(machine, delta) { }
     on_exit(machine) { }
@@ -495,13 +506,13 @@ class AnimateInstruction extends Instruction {
 }
 
 function add_anim_command(line_no, cmd, arg) {
-    machine.push_instruction(new AnimateInstruction(cmd, arg))
+    machine.push_instruction(new AnimateInstruction(cmd, arg).at_line_no(line_no))
 }
 function add_enter_command(line_no, cmd, ...args) {
-    machine.push_instruction(new EnterInstruction(cmd, ...args))
+    machine.push_instruction(new EnterInstruction(cmd, ...args).at_line_no(line_no))
 }
 function add_enter_exit_command(line_no, cmd1, cmd2) {
-    machine.push_instruction(new EnterExitInstruction(cmd1, cmd2))
+    machine.push_instruction(new EnterExitInstruction(cmd1, cmd2).at_line_no(line_no))
 }
 
 class CommandParser {
