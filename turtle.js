@@ -534,14 +534,19 @@ class CommandParser {
     constructor(re) {
         this.re = re;
     }
-    check(line_no, line, indent) {
+    check(line_no, line) {
         var chk = this.re.exec(line)
         if (chk) {
             var args = chk.slice(1)
             this.exec(line_no, ...args)
-            return true;
+            return {
+                type: "single_command",
+                command: undefined
+            };
         }
-        return false;
+        return {
+            type: "wrong_command"
+        };
     }
     exec(line_no, ...args) {
         //console.log(args)
@@ -619,19 +624,46 @@ const command_parsers = [
     }),
 ];
 
-function parse_normalized_text_line(words, line_no, indent) {
-    console.log("indent: " + indent)
+class ParseCtx {
+    constructor() {
+        this.last_indent = 0
+    }
 
-    var line = words.join(" ")
-
-    try {
+    parse_line(line, line_no, indent) {
         var executed = false;
-        command_parsers.forEach(command => {
-            executed |= command.check(line_no, line, indent)
-        });
+        for (var i = 0; i < command_parsers.length; i++) {
+            var res = command_parsers[i].check(line_no, line);
+            if (res.type == "wrong_command") {
+                continue
+            } else if (res.type == "single_command") {
+                executed = true
+                break
+            } else if (res.type == "block_command") {
+                executed = true
+                break
+            }
+        }
         if (!executed) {
             throw "unknown command"
         }
+    }
+
+    handle_parsed_command() {
+
+    }
+
+
+}
+parse_ctx = undefined
+
+re_leading_ws = /\S|$/
+function leading_ws(s) {
+    return s.search(re_leading_ws)
+}
+
+function parse_normalized_text_line(line, line_no, indent) {
+    try {
+        parse_ctx.parse_line(line, line_no, indent)
     } catch (e) {
         throw {
             message: "I don't understand that!",
@@ -640,15 +672,17 @@ function parse_normalized_text_line(words, line_no, indent) {
     }
 }
 
-re_leading_ws = /\S|$/
 
 function parse_text_line(line, line_no) {
-    indent = line.search(re_leading_ws)
+    indent = leading_ws(line)
+    console.log("indent: " + indent)
+
     var split_command = line.split(" ").filter(function (el) {
         return el != "";
     });
     if (split_command.length != 0) {
-        parse_normalized_text_line(split_command, line_no, indent)
+        var line = split_command.join(" ")
+        parse_normalized_text_line(line, line_no, indent)
     } else {
         // TODO: no command handler
     }
@@ -657,9 +691,10 @@ function parse_text_line(line, line_no) {
 function parse_text_area(definitionsText) {
     var l = 0;
     var err_lines = []
-
     reset();
     machine.stop_program();
+    parse_ctx = new ParseCtx()
+
     definitionsText.split(/[\r\n]/g).forEach(element => {
         try {
             parse_text_line(element, l)
