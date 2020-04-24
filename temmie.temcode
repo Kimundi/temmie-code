@@ -1,0 +1,63 @@
+change speed to 10
+change pen color to 0 0 0
+
+turn 180 degree right
+run 50 pixel forward
+turn 90 degree left 
+
+hold pen down
+repeat this sublist 18 times:
+  turn 20 degree right
+  run 14 pixel forward
+  turn 60 degree left
+  run 14 pixel forward
+  turn 20 degree right
+pick pen up
+
+turn 90 degree left
+run 60 pixel forward
+
+turn 35 degree right
+repeat this sublist 2 times:
+    run 100 pixel forward
+    
+    run 30 pixel forward
+    turn 150 degree left
+    
+    hold pen down
+    
+    run 60 pixel forward
+    turn 180 degree left
+    run 60 pixel forward
+    
+    turn 120 degree right
+    
+    run 60 pixel forward
+    turn 180 degree left
+    run 60 pixel forward
+    
+    pick pen up
+    
+    turn 150 degree left
+    run 30 pixel forward
+    
+    hold pen down
+    
+    turn 30 degree right
+    run 20 pixel forward
+    turn 180 degree right
+    run 20 pixel forward
+    turn 150 degree right
+
+    turn 30 degree left
+    run 20 pixel forward
+    turn 180 degree right
+    run 20 pixel forward
+    turn 150 degree left
+    
+    pick pen up
+    
+    run 100 pixel forward
+
+    turn 110 degree right
+turn 100 degree right
