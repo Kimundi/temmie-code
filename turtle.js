@@ -494,18 +494,13 @@ class AnimateInstruction extends Instruction {
     }
 }
 
-
-
-/////////////////////// old style machine
-
-
 function add_anim_command(line_no, cmd, arg) {
     machine.push_instruction(new AnimateInstruction(cmd, arg))
 }
-function add_early_command(line_no, cmd, ...args) {
+function add_enter_command(line_no, cmd, ...args) {
     machine.push_instruction(new EnterInstruction(cmd, ...args))
 }
-function add_set_reset_command(line_no, cmd1, cmd2) {
+function add_enter_exit_command(line_no, cmd1, cmd2) {
     machine.push_instruction(new EnterExitInstruction(cmd1, cmd2))
 }
 
@@ -536,14 +531,14 @@ class CommandParser {
             add_anim_command(line_no, ...fn(...args))
         })
     }
-    early_with(fn) {
+    enter_with(fn) {
         return this.with((line_no, ...args) => {
-            add_early_command(line_no, ...fn(...args))
+            add_enter_command(line_no, ...fn(...args))
         })
     }
-    set_reset_with(fn) {
+    enter_exit_with(fn) {
         return this.with((line_no, ...args) => {
-            add_set_reset_command(line_no, ...fn(...args))
+            add_enter_exit_command(line_no, ...fn(...args))
         })
     }
 
@@ -552,35 +547,35 @@ class CommandParser {
             add_anim_command(line_no, ...args)
         })
     }
-    early(...args) {
+    enter(...args) {
         return this.with((line_no) => {
-            add_early_command(line_no, ...args)
+            add_enter_command(line_no, ...args)
         })
     }
-    set_reset(...args) {
+    enter_exit(...args) {
         return this.with((line_no) => {
-            add_set_reset_command(line_no, ...args)
+            add_enter_exit_command(line_no, ...args)
         })
     }
 }
 
 // Implementation of all commands
 const command_parsers = [
-    new CommandParser(/bark/).early(write, "bork!"),
+    new CommandParser(/bark/).enter(write, "bork!"),
     new CommandParser(/hide/).anim(hideTurtle, 100),
     new CommandParser(/show/).anim(showTurtle, 100),
-    new CommandParser(/hold pen down/).early(pendown),
-    new CommandParser(/pick pen up/).early(penup),
-    new CommandParser(/peng/).set_reset(peng, unpeng),
+    new CommandParser(/hold pen down/).enter(pendown),
+    new CommandParser(/pick pen up/).enter(penup),
+    new CommandParser(/peng/).enter_exit(peng, unpeng),
     new CommandParser(/roll over/).anim(roll, 360),
 
     new CommandParser(/run (\d+) pixel forward/).anim_with((arg) => [forward, parseFloat(arg)]),
     new CommandParser(/turn (\d+) degree left/).anim_with((arg) => [left, parseFloat(arg)]),
     new CommandParser(/turn (\d+) degree right/).anim_with((arg) => [right, parseFloat(arg)]),
 
-    new CommandParser(/change pen width to (\d+) pixel/).early_with((arg) => [width, parseFloat(arg)]),
-    new CommandParser(/change pen color to (\d+) (\d+) (\d+)/).early_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
-    new CommandParser(/change speed to (\d+)/).early_with((arg) => [change_speed, parseFloat(arg)]),
+    new CommandParser(/change pen width to (\d+) pixel/).enter_with((arg) => [width, parseFloat(arg)]),
+    new CommandParser(/change pen color to (\d+) (\d+) (\d+)/).enter_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
+    new CommandParser(/change speed to (\d+)/).enter_with((arg) => [change_speed, parseFloat(arg)]),
 
     new CommandParser(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
 
