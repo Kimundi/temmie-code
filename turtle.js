@@ -363,23 +363,246 @@ function change_speed(speed) {
     turtle.speed = speed
 }
 
+/////////////////////// new style machine
+
+
+
+class Machine {
+    constructor() {
+        this.reset_machine()
+    }
+    reset_machine() {
+        this.code = []
+        this.stack = [
+            {
+                remaining_time: 0,
+                fresh_jump: false,
+            }
+        ]
+        this.ip = -1
+    }
+    top() {
+        return this.stack[this.stack.length - 1]
+    }
+    ip_valid() {
+        return (this.ip >= 0 && this.ip < this.code.length)
+    }
+    show_program_stopped() {
+        reset_highlight_line()
+    }
+    start_program() {
+        if (this.code.length > 0) {
+            this.set_ip(0)
+            this.jump()
+        } else {
+            this.reset_machine()
+        }
+    }
+    stop_program() {
+        this.reset_machine()
+        this.jump()
+    }
+    on_total_time_delta(total_delta) {
+        while (this.ip_valid() && total_delta > 0) {
+            var delta = Math.min(this.top().remaining_time, total_delta)
+            this.top().remaining_time -= delta
+            total_delta -= delta
+
+            this.on_exact_time_delta(delta)
+        }
+        if (!this.ip_valid()) {
+            this.show_program_stopped()
+        }
+    }
+    on_exact_time_delta(delta) {
+        var cur = this.code[this.ip]
+        if (this.top().fresh_jump) {
+            cur.on_enter(this)
+            this.top().fresh_jump = false
+        }
+        cur.on_animate(this, delta)
+        if (this.top().remaining_time == 0) {
+            this.ip += 1
+            cur.on_exit(this)
+            this.jump()
+        }
+    }
+    jump() {
+        if (this.ip_valid()) {
+            var cur = this.code[this.ip]
+            this.top().remaining_time = cur.animation_time()
+            this.top().fresh_jump = true
+        } else {
+            this.reset_machine()
+        }
+    }
+}
+machine = new Machine()
+
+class Instruction {
+    constructor() { }
+    on_enter(machine) { }
+    on_animate(machine, delta) { }
+    on_exit(machine) { }
+    animation_time() {
+        return 0
+    }
+}
+class EnterInstruction extends Instruction {
+    constructor(fn, ...params) {
+        this.fn = fn
+        this.params = params
+    }
+    on_enter(machine) {
+        (this.fn)(...this.params)
+    }
+}
+class EnterExitInstruction extends Instruction {
+    constructor(fn1, fn2) {
+        this.fn1 = fn1
+        this.fn2 = fn2
+    }
+    on_enter(machine) {
+        (this.fn1)()
+    }
+    on_exit(machine) {
+        (this.fn2)()
+    }
+}
+class AnimateInstruction extends Instruction {
+    constructor(fn, param) {
+        this.fn = fn
+        this.param = param
+    }
+    on_animate(machine, delta) {
+        (this.fn)(this.param * delta)
+    }
+}
+
+
+
+/////////////////////// old style machine
+
 cmd_queue = []
-function do_command(line_no, cmd, ...args) {
-    cmd_queue.push([1000, line_no, cmd, args, "late"])
-}
-function do_anim_command(line_no, cmd, ...args) {
-    cmd_queue.push([1000, line_no, cmd, args, "interpolate"])
-}
-function do_early_command(line_no, cmd, ...args) {
-    cmd_queue.push([1000, line_no, cmd, args, "early"])
-}
-function do_set_reset_command(line_no, cmd, ...args) {
-    cmd_queue.push([1000, line_no, cmd, args, "set_reset"])
-}
+cmd_stack = []
+
 function clear_commands() {
     reset_highlight_line();
     cmd_queue = []
+    cmd_stack = []
 }
+
+function add_anim_command(line_no, cmd, ...args) {
+    cmd_queue.push([1000, line_no, cmd, args, "interpolate"])
+}
+function add_early_command(line_no, cmd, ...args) {
+    cmd_queue.push([1000, line_no, cmd, args, "early"])
+}
+function add_set_reset_command(line_no, cmd, ...args) {
+    cmd_queue.push([1000, line_no, cmd, args, "set_reset"])
+}
+
+class Command {
+    constructor(re) {
+        this.re = re;
+    }
+    check(line_no, line, indent) {
+        var chk = this.re.exec(line)
+        if (chk) {
+            var args = chk.slice(1)
+            this.exec(line_no, ...args)
+            return true;
+        }
+        return false;
+    }
+    exec(line_no, ...args) {
+        //console.log(args)
+        this.fn(line_no, ...args)
+    }
+    with(fn) {
+        this.fn = fn
+        return this
+    }
+
+    anim_with(fn) {
+        return this.with((line_no, ...args) => {
+            add_anim_command(line_no, ...fn(...args))
+        })
+    }
+    early_with(fn) {
+        return this.with((line_no, ...args) => {
+            add_early_command(line_no, ...fn(...args))
+        })
+    }
+    set_reset_with(fn) {
+        return this.with((line_no, ...args) => {
+            add_set_reset_command(line_no, ...fn(...args))
+        })
+    }
+
+    anim(...args) {
+        return this.with((line_no) => {
+            add_anim_command(line_no, ...args)
+        })
+    }
+    early(...args) {
+        return this.with((line_no) => {
+            add_early_command(line_no, ...args)
+        })
+    }
+    set_reset(...args) {
+        return this.with((line_no) => {
+            add_set_reset_command(line_no, ...args)
+        })
+    }
+}
+
+
+// Implementation of all commands
+const commands = [
+    new Command(/bark/).early(write, "bork!"),
+    new Command(/hide/).anim(hideTurtle, 100),
+    new Command(/show/).anim(showTurtle, 100),
+    new Command(/hold pen down/).early(pendown),
+    new Command(/pick pen up/).early(penup),
+    new Command(/peng/).set_reset(peng, unpeng),
+    new Command(/roll over/).anim(roll, 360),
+
+    new Command(/run (\d+) pixel forward/).anim_with((arg) => [forward, parseFloat(arg)]),
+    new Command(/turn (\d+) degree left/).anim_with((arg) => [left, parseFloat(arg)]),
+    new Command(/turn (\d+) degree right/).anim_with((arg) => [right, parseFloat(arg)]),
+
+    new Command(/change pen width to (\d+) pixel/).early_with((arg) => [width, parseFloat(arg)]),
+    new Command(/change pen color to (\d+) (\d+) (\d+)/).early_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
+    new Command(/change speed to (\d+)/).early_with((arg) => [change_speed, parseFloat(arg)]),
+
+    new Command(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
+        var next_idx = cmd_queue.length
+
+    }),
+];
+
+function tem_parse(words, line_no, indent) {
+    console.log("indent: " + indent)
+
+    var line = words.join(" ")
+
+    try {
+        var executed = false;
+        commands.forEach(command => {
+            executed |= command.check(line_no, line, indent)
+        });
+        if (!executed) {
+            throw "unknown command"
+        }
+    } catch (e) {
+        throw {
+            message: "I don't understand that!",
+            nerd_reason: e,
+        }
+    }
+}
+
 
 anim_cmd_pointer = -1
 anim_timeout = 0
@@ -465,106 +688,6 @@ function on_frame() {
 
     requestAnimationFrame(on_frame);
 }
-
-class Command {
-    constructor(re) {
-        this.re = re;
-    }
-    check(line_no, line) {
-        var chk = this.re.exec(line)
-        if (chk) {
-            var args = chk.slice(1)
-            this.exec(line_no, ...args)
-            return true;
-        }
-        return false;
-    }
-    exec(line_no, ...args) {
-        //console.log(args)
-        this.fn(line_no, ...args)
-    }
-    with(fn) {
-        this.fn = fn
-        return this
-    }
-
-    anim_with(fn) {
-        return this.with((line_no, ...args) => {
-            do_anim_command(line_no, ...fn(...args))
-        })
-    }
-    early_with(fn) {
-        return this.with((line_no, ...args) => {
-            do_early_command(line_no, ...fn(...args))
-        })
-    }
-    set_reset_with(fn) {
-        return this.with((line_no, ...args) => {
-            do_set_reset_command(line_no, ...fn(...args))
-        })
-    }
-
-    anim(...args) {
-        return this.with((line_no) => {
-            do_anim_command(line_no, ...args)
-        })
-    }
-    early(...args) {
-        return this.with((line_no) => {
-            do_early_command(line_no, ...args)
-        })
-    }
-    set_reset(...args) {
-        return this.with((line_no) => {
-            do_set_reset_command(line_no, ...args)
-        })
-    }
-}
-
-// Implementation of all commands
-const commands = [
-    new Command(/bark/).early(write, "bork!"),
-    new Command(/hide/).anim(hideTurtle, 100),
-    new Command(/show/).anim(showTurtle, 100),
-    new Command(/hold pen down/).early(pendown),
-    new Command(/pick pen up/).early(penup),
-    new Command(/peng/).set_reset(peng, unpeng),
-    new Command(/roll over/).anim(roll, 360),
-
-    new Command(/run (\d+) pixel forward/).anim_with((arg) => [forward, parseFloat(arg)]),
-    new Command(/turn (\d+) degree left/).anim_with((arg) => [left, parseFloat(arg)]),
-    new Command(/turn (\d+) degree right/).anim_with((arg) => [right, parseFloat(arg)]),
-
-    new Command(/change pen width to (\d+) pixel/).early_with((arg) => [width, parseFloat(arg)]),
-    new Command(/change pen color to (\d+) (\d+) (\d+)/).early_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
-    new Command(/change speed to (\d+)/).early_with((arg) => [change_speed, parseFloat(arg)]),
-
-    new Command(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
-
-    }),
-];
-
-function tem_parse(words, line_no, indent) {
-    console.log(indent)
-
-    var line = words.join(" ")
-
-    try {
-        var executed = false;
-        commands.forEach(command => {
-            executed |= command.check(line_no, line)
-        });
-        if (!executed) {
-            throw "unknown command"
-        }
-    } catch (e) {
-        throw {
-            message: "I don't understand that!",
-            nerd_reason: e,
-        }
-    }
-}
-
 
 //////////////////
 // UI code below//
