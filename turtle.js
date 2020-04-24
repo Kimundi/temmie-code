@@ -562,19 +562,19 @@ class CommandParser {
         machine.push_instruction(new EnterExitInstruction(cmd1, cmd2).at_line_no(line_no))
     }
 
-    anim_with(fn) {
+    anim_with(cmd, fn) {
         return this.with((line_no, ...args) => {
-            this.push_anim_command(line_no, ...fn(...args))
+            this.push_anim_command(line_no, cmd, fn(...args))
         })
     }
-    enter_with(fn) {
+    enter_with(cmd, fn) {
         return this.with((line_no, ...args) => {
-            this.push_enter_command(line_no, ...fn(...args))
+            this.push_enter_command(line_no, cmd, ...fn(...args))
         })
     }
-    enter_exit_with(fn) {
+    enter_exit_with(cmd, fn) {
         return this.with((line_no, ...args) => {
-            this.push_enter_exit_command(line_no, ...fn(...args))
+            this.push_enter_exit_command(line_no, cmd, ...fn(...args))
         })
     }
 
@@ -605,13 +605,13 @@ const command_parsers = [
     new CommandParser(/peng/).enter_exit(peng, unpeng),
     new CommandParser(/roll over/).anim(roll, 360),
 
-    new CommandParser(/run (\d+) pixel forward/).anim_with((arg) => [forward, parseFloat(arg)]),
-    new CommandParser(/turn (\d+) degree left/).anim_with((arg) => [left, parseFloat(arg)]),
-    new CommandParser(/turn (\d+) degree right/).anim_with((arg) => [right, parseFloat(arg)]),
+    new CommandParser(/run (\d+) pixel forward/).anim_with(forward, parseFloat),
+    new CommandParser(/turn (\d+) degree left/).anim_with(left, parseFloat),
+    new CommandParser(/turn (\d+) degree right/).anim_with(right, parseFloat),
 
-    new CommandParser(/change pen width to (\d+) pixel/).enter_with((arg) => [width, parseFloat(arg)]),
-    new CommandParser(/change pen color to (\d+) (\d+) (\d+)/).enter_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
-    new CommandParser(/change speed to (\d+)/).enter_with((arg) => [change_speed, parseFloat(arg)]),
+    new CommandParser(/change pen width to (\d+) pixel/).enter_with(width, (arg) => [parseFloat(arg)]),
+    new CommandParser(/change pen color to (\d+) (\d+) (\d+)/).enter_with(color, (r, g, b) => [parseInt(r), parseInt(g), parseInt(b), 255]),
+    new CommandParser(/change speed to (\d+)/).enter_with(change_speed, (arg) => [parseFloat(arg)]),
 
     new CommandParser(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
         var repeats = parseInt(arg)
