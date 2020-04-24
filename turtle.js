@@ -505,8 +505,11 @@ class AnimateInstruction extends Instruction {
     }
 }
 class RepeatStartInstruction extends Instruction {
-    constructor(key) {
+    constructor(repeats) {
         super();
+        this.repeats = repeats
+    }
+    set_block_ctx_key(key) {
         this.key = key
     }
     on_exit(machine) {
@@ -521,8 +524,10 @@ class RepeatStartInstruction extends Instruction {
     }
 }
 class RepeatEndInstruction extends Instruction {
-    constructor(key) {
+    constructor() {
         super();
+    }
+    set_block_ctx_key(key) {
         this.key = key
     }
     on_exit(machine) {
@@ -534,68 +539,70 @@ class CommandParser {
     constructor(re) {
         this.re = re;
     }
-    check(line_no, line) {
-        var chk = this.re.exec(line)
-        if (chk) {
-            var args = chk.slice(1)
-            this.exec(line_no, ...args)
-            return {
-                type: "single_command",
-                command: undefined
-            };
-        }
-        return {
-            type: "wrong_command"
-        };
-    }
-    exec(line_no, ...args) {
-        //console.log(args)
-        this.fn(line_no, ...args)
-    }
     with(fn) {
         this.fn = fn
         return this
     }
 
-    push_anim_command(line_no, cmd, arg) {
-        machine.push_instruction(new AnimateInstruction(cmd, arg).at_line_no(line_no))
+    check(line_no, line) {
+        var chk = this.re.exec(line)
+        if (chk) {
+            var args = chk.slice(1)
+            return this.fn(line_no, ...args)
+        }
+        return {
+            type: "wrong_command"
+        };
     }
-    push_enter_command(line_no, cmd, ...args) {
-        machine.push_instruction(new EnterInstruction(cmd, ...args).at_line_no(line_no))
+
+    anim_command(cmd, arg) {
+        return {
+            type: "single_command",
+            command: new AnimateInstruction(cmd, arg)
+        }
     }
-    push_enter_exit_command(line_no, cmd1, cmd2) {
-        machine.push_instruction(new EnterExitInstruction(cmd1, cmd2).at_line_no(line_no))
+    enter_command(cmd, ...args) {
+        return {
+            type: "single_command",
+            command: new EnterInstruction(cmd, ...args)
+        }
+    }
+    enter_exit_command(cmd1, cmd2) {
+        return {
+            type: "single_command",
+            command: new EnterExitInstruction(cmd1, cmd2)
+        }
     }
 
     anim_with(cmd, fn) {
         return this.with((line_no, ...args) => {
-            this.push_anim_command(line_no, cmd, fn(...args))
+            return this.anim_command(cmd, fn(...args))
         })
     }
     enter_with(cmd, fn) {
         return this.with((line_no, ...args) => {
-            this.push_enter_command(line_no, cmd, ...fn(...args))
+            return this.enter_command(cmd, ...fn(...args))
         })
     }
     enter_exit_with(cmd, fn) {
         return this.with((line_no, ...args) => {
-            this.push_enter_exit_command(line_no, cmd, ...fn(...args))
+            return this.enter_exit_command(cmd, ...fn(...args))
         })
     }
 
     anim(...args) {
         return this.with((line_no) => {
-            this.push_anim_command(line_no, ...args)
+            return this.anim_command(...args)
         })
     }
     enter(...args) {
         return this.with((line_no) => {
-            this.push_enter_command(line_no, ...args)
+            return this.enter_command(...args)
         })
     }
     enter_exit(...args) {
         return this.with((line_no) => {
-            this.push_enter_exit_command(line_no, ...args)
+            return this.enter_exit_command(...args)
         })
     }
 }
@@ -620,7 +627,11 @@ const command_parsers = [
 
     new CommandParser(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
         var repeats = parseInt(arg)
-        machine.push_instruction(new RepeatStartInstruction(line_no).at_line_no(line_no))
+        return {
+            type: "block_command",
+            start_command: new RepeatStartInstruction(repeats),
+            end_command: new RepeatEndInstruction(),
+        }
     }),
 ];
 
@@ -635,10 +646,8 @@ class ParseCtx {
             var res = command_parsers[i].check(line_no, line);
             if (res.type == "wrong_command") {
                 continue
-            } else if (res.type == "single_command") {
-                executed = true
-                break
-            } else if (res.type == "block_command") {
+            } else {
+                this.handle_parsed_command_with_indent(res, line_no, indent)
                 executed = true
                 break
             }
@@ -648,8 +657,22 @@ class ParseCtx {
         }
     }
 
-    handle_parsed_command() {
+    handle_parsed_command_with_indent(res, line_no, indent) {
+        this.handle_parsed_command(res, line_no)
+    }
 
+    handle_parsed_command(res, line_no) {
+        if (res.type == "single_command") {
+            machine.push_instruction(res.command.at_line_no(line_no))
+        } else if (res.type == "block_command") {
+            var start_cmd = res.start_command.at_line_no(line_no)
+            start_cmd.set_block_ctx_key(line_no)
+
+            var end_cmd = res.end_command.at_line_no(line_no)
+            end_cmd.set_block_ctx_key(line_no)
+
+            machine.push_instruction(start_cmd)
+        }
     }
 
 
@@ -699,7 +722,7 @@ function parse_text_area(definitionsText) {
         try {
             parse_text_line(element, l)
         } catch (e) {
-            console.log(e.nerd_reason)
+            console.log(e)
             err_lines.push(l)
         } finally { l += 1; }
     });
