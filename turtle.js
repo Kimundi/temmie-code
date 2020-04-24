@@ -558,50 +558,6 @@ class CommandParser {
 }
 
 
-// Implementation of all commands
-const command_parsers = [
-    new CommandParser(/bark/).early(write, "bork!"),
-    new CommandParser(/hide/).anim(hideTurtle, 100),
-    new CommandParser(/show/).anim(showTurtle, 100),
-    new CommandParser(/hold pen down/).early(pendown),
-    new CommandParser(/pick pen up/).early(penup),
-    new CommandParser(/peng/).set_reset(peng, unpeng),
-    new CommandParser(/roll over/).anim(roll, 360),
-
-    new CommandParser(/run (\d+) pixel forward/).anim_with((arg) => [forward, parseFloat(arg)]),
-    new CommandParser(/turn (\d+) degree left/).anim_with((arg) => [left, parseFloat(arg)]),
-    new CommandParser(/turn (\d+) degree right/).anim_with((arg) => [right, parseFloat(arg)]),
-
-    new CommandParser(/change pen width to (\d+) pixel/).early_with((arg) => [width, parseFloat(arg)]),
-    new CommandParser(/change pen color to (\d+) (\d+) (\d+)/).early_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
-    new CommandParser(/change speed to (\d+)/).early_with((arg) => [change_speed, parseFloat(arg)]),
-
-    new CommandParser(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
-        var next_idx = cmd_queue.length
-
-    }),
-];
-
-function tem_parse(words, line_no, indent) {
-    console.log("indent: " + indent)
-
-    var line = words.join(" ")
-
-    try {
-        var executed = false;
-        command_parsers.forEach(command => {
-            executed |= command.check(line_no, line, indent)
-        });
-        if (!executed) {
-            throw "unknown command"
-        }
-    } catch (e) {
-        throw {
-            message: "I don't understand that!",
-            nerd_reason: e,
-        }
-    }
-}
 
 
 anim_cmd_pointer = -1
@@ -642,9 +598,14 @@ function on_frame() {
     var this_time = Date.now()
     var delta = (this_time - last_time)
     last_time = this_time
+
+    var speeded_delta = (delta * turtle.speed) / 1000
+
     if (anim_cmd_pointer >= 0) {
+        var weighted_delta = speeded_delta
+
         // decrease timeout till first command runs...
-        var weighted_delta = (delta * turtle.speed) / 1000
+        console.log(weighted_delta)
 
         var [cmd_line_no, cmd_fn, cmd_fn_args, cmd_animation_kind] = current_cmd();
 
@@ -688,30 +649,72 @@ function on_frame() {
 
     requestAnimationFrame(on_frame);
 }
+function kickoff_first_frame() {
+    last_time = Date.now()
+    requestAnimationFrame(on_frame);
+}
 
-//////////////////
-// UI code below//
-//////////////////
 
-// Navigate command history
-var commandList = [];
-var currentCommand = 0;
+// Implementation of all commands
+const command_parsers = [
+    new CommandParser(/bark/).early(write, "bork!"),
+    new CommandParser(/hide/).anim(hideTurtle, 100),
+    new CommandParser(/show/).anim(showTurtle, 100),
+    new CommandParser(/hold pen down/).early(pendown),
+    new CommandParser(/pick pen up/).early(penup),
+    new CommandParser(/peng/).set_reset(peng, unpeng),
+    new CommandParser(/roll over/).anim(roll, 360),
+
+    new CommandParser(/run (\d+) pixel forward/).anim_with((arg) => [forward, parseFloat(arg)]),
+    new CommandParser(/turn (\d+) degree left/).anim_with((arg) => [left, parseFloat(arg)]),
+    new CommandParser(/turn (\d+) degree right/).anim_with((arg) => [right, parseFloat(arg)]),
+
+    new CommandParser(/change pen width to (\d+) pixel/).early_with((arg) => [width, parseFloat(arg)]),
+    new CommandParser(/change pen color to (\d+) (\d+) (\d+)/).early_with((r, g, b) => [color, parseInt(r), parseInt(g), parseInt(b), 255]),
+    new CommandParser(/change speed to (\d+)/).early_with((arg) => [change_speed, parseFloat(arg)]),
+
+    new CommandParser(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
+        var next_idx = cmd_queue.length
+
+    }),
+];
+
+function parse_normalized_text_line(words, line_no, indent) {
+    console.log("indent: " + indent)
+
+    var line = words.join(" ")
+
+    try {
+        var executed = false;
+        command_parsers.forEach(command => {
+            executed |= command.check(line_no, line, indent)
+        });
+        if (!executed) {
+            throw "unknown command"
+        }
+    } catch (e) {
+        throw {
+            message: "I don't understand that!",
+            nerd_reason: e,
+        }
+    }
+}
 
 re_leading_ws = /\S|$/
 
-function run_tem_code(line, line_no) {
+function parse_text_line(line, line_no) {
     indent = line.search(re_leading_ws)
     var split_command = line.split(" ").filter(function (el) {
         return el != "";
     });
     if (split_command.length != 0) {
-        tem_parse(split_command, line_no, indent)
+        parse_normalized_text_line(split_command, line_no, indent)
     } else {
         // TODO: no command handler
     }
 }
 
-function enqueue_commands(definitionsText) {
+function parse_text_area(definitionsText) {
     var l = 0;
     var err_lines = []
 
@@ -719,7 +722,7 @@ function enqueue_commands(definitionsText) {
     clear_commands();
     definitionsText.split(/[\r\n]/g).forEach(element => {
         try {
-            run_tem_code(element, l)
+            parse_text_line(element, l)
         } catch (e) {
             console.log(e.nerd_reason)
             err_lines.push(l)
@@ -727,6 +730,12 @@ function enqueue_commands(definitionsText) {
     });
     return { trimmed_text: definitionsText.trimRight(), err_lines: err_lines }
 }
+
+//////////////////
+// UI code below//
+//////////////////
+
+
 
 $('#resetButton').click(function () {
     reset();
@@ -776,7 +785,7 @@ _markers = []
 
 function rerun_editor() {
     stop_animate();
-    var ctx = enqueue_commands(editor.getSession().getValue());
+    var ctx = parse_text_area(editor.getSession().getValue());
     start_animate();
 
     _markers.forEach(element => {
@@ -896,6 +905,5 @@ loadImages(["temmie_normal.png", "temmie_pen.png", "temmie_peng.png"]).then(imag
         });
     }
     reset();
+    kickoff_first_frame();
 })
-on_frame();
-
