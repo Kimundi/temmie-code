@@ -766,15 +766,12 @@ $('#replayButton').click(function () {
     rerun_editor();
 });
 
-$('#exampleButton').click(function () {
-    editor.getSession().setValue(
-        `turn 20 degree right
+const example_01 = `turn 20 degree right
 
 hold pen down
 
-repeat this sublist 4 times:
-  run 100 pixel forward
-  turn 90 degree left
+run 100 pixel forward
+turn 90 degree left
 
 bark
 
@@ -797,7 +794,38 @@ run 50 pixel forward
 
 hide
 `
-    );
+
+const example_02 = `run 50 pixel forward
+turn 150 degree left
+run 100 pixel forward
+
+bark
+
+turn 120 degree left
+run 100 pixel forward
+
+roll over
+
+turn 120 degree left
+run 100 pixel forward
+
+peng
+
+hold pen down
+
+repeat this sublist 4 times:
+  turn 90 degree left
+  run 100 pixel forward
+
+pick pen up
+
+run 50 pixel forward
+
+hide
+`
+
+$('#exampleButton').click(function () {
+    editor.getSession().setValue(example_02);
 });
 
 var Range = ace.require('ace/range').Range;
