@@ -504,15 +504,30 @@ class AnimateInstruction extends Instruction {
         return 1
     }
 }
-
-function add_anim_command(line_no, cmd, arg) {
-    machine.push_instruction(new AnimateInstruction(cmd, arg).at_line_no(line_no))
+class RepeatStartInstruction extends Instruction {
+    constructor(key) {
+        super();
+        this.key = key
+    }
+    on_exit(machine) {
+        if (machine.top().loop_jump_back == undefined) {
+            machine.top().loop_jump_back = {}
+        }
+        machine.top().loop_jump_back[this.key] = machine.ip
+        console.log(machine.top())
+    }
+    animation_time() {
+        return 1
+    }
 }
-function add_enter_command(line_no, cmd, ...args) {
-    machine.push_instruction(new EnterInstruction(cmd, ...args).at_line_no(line_no))
-}
-function add_enter_exit_command(line_no, cmd1, cmd2) {
-    machine.push_instruction(new EnterExitInstruction(cmd1, cmd2).at_line_no(line_no))
+class RepeatEndInstruction extends Instruction {
+    constructor(key) {
+        super();
+        this.key = key
+    }
+    on_exit(machine) {
+        machine.ip = machine.top().loop_jump_back[this.key]
+    }
 }
 
 class CommandParser {
@@ -537,35 +552,45 @@ class CommandParser {
         return this
     }
 
+    push_anim_command(line_no, cmd, arg) {
+        machine.push_instruction(new AnimateInstruction(cmd, arg).at_line_no(line_no))
+    }
+    push_enter_command(line_no, cmd, ...args) {
+        machine.push_instruction(new EnterInstruction(cmd, ...args).at_line_no(line_no))
+    }
+    push_enter_exit_command(line_no, cmd1, cmd2) {
+        machine.push_instruction(new EnterExitInstruction(cmd1, cmd2).at_line_no(line_no))
+    }
+
     anim_with(fn) {
         return this.with((line_no, ...args) => {
-            add_anim_command(line_no, ...fn(...args))
+            this.push_anim_command(line_no, ...fn(...args))
         })
     }
     enter_with(fn) {
         return this.with((line_no, ...args) => {
-            add_enter_command(line_no, ...fn(...args))
+            this.push_enter_command(line_no, ...fn(...args))
         })
     }
     enter_exit_with(fn) {
         return this.with((line_no, ...args) => {
-            add_enter_exit_command(line_no, ...fn(...args))
+            this.push_enter_exit_command(line_no, ...fn(...args))
         })
     }
 
     anim(...args) {
         return this.with((line_no) => {
-            add_anim_command(line_no, ...args)
+            this.push_anim_command(line_no, ...args)
         })
     }
     enter(...args) {
         return this.with((line_no) => {
-            add_enter_command(line_no, ...args)
+            this.push_enter_command(line_no, ...args)
         })
     }
     enter_exit(...args) {
         return this.with((line_no) => {
-            add_enter_exit_command(line_no, ...args)
+            this.push_enter_exit_command(line_no, ...args)
         })
     }
 }
@@ -589,7 +614,8 @@ const command_parsers = [
     new CommandParser(/change speed to (\d+)/).enter_with((arg) => [change_speed, parseFloat(arg)]),
 
     new CommandParser(/repeat this sublist (\d+) times:/).with((line_no, arg) => {
-
+        var repeats = parseInt(arg)
+        machine.push_instruction(new RepeatStartInstruction(line_no).at_line_no(line_no))
     }),
 ];
 
@@ -680,8 +706,9 @@ $('#exampleButton').click(function () {
 
 hold pen down
 
-run 100 pixel forward
-turn 90 degree left
+repeat this sublist 4 times:
+  run 100 pixel forward
+  turn 90 degree left
 
 bark
 
