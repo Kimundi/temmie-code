@@ -551,7 +551,7 @@ class CommandParser {
         return this
     }
 
-    check(line_no, line) {
+    check(line) {
         var chk = this.re.exec(line)
         if (chk) {
             var args = chk.slice(1)
@@ -632,7 +632,7 @@ class ParseCtx {
     parse_line(line, line_no, indent) {
         var executed = false;
         for (var i = 0; i < command_parsers.length; i++) {
-            var res = command_parsers[i].check(line_no, line);
+            var res = command_parsers[i].check(line);
             if (res.type == "wrong_command") {
                 continue
             } else {
@@ -673,9 +673,8 @@ class ParseCtx {
             })
         }
     }
-
-
 }
+
 parse_ctx = undefined
 
 re_leading_ws = /\S|$/
