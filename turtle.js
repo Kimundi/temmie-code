@@ -363,6 +363,76 @@ function change_speed(speed) {
     turtle.speed = speed
 }
 
+function flood(color) {
+    floodFill(imageContext, turtle.pos.x, turtle.pos.y, color);
+    drawIf();
+}
+
+function pixel_valid(x, y, w, h) {
+    return (x >= 0 && y >= 0 && x < w && y < h)
+}
+
+function floodFill(ctx, x, y, fillColor) {
+    const w = ctx.canvas.width
+    const h = ctx.canvas.height
+
+    x = Math.round(x + w / 2)
+    y = Math.round(-y + h / 2)
+
+    if (!pixel_valid(x, y, w, h)) {
+        return
+    }
+
+    // read the pixels in the canvas
+    const imageData = ctx.getImageData(0, 0, w, h);
+
+    // make a Uint32Array view on the pixels so we can manipulate pixels
+    // one 32bit value at a time instead of as 4 bytes per pixel
+    const pixelData = {
+        width: imageData.width,
+        height: imageData.height,
+        data: new Uint32Array(imageData.data.buffer),
+    };
+
+    // get the color we're filling
+    const targetColor = pixelData.data[y * pixelData.width + x];
+
+    // check we are actually filling a different color
+    if (targetColor !== fillColor) {
+        let tickCount = 0;
+        const pixelsToCheck = [x, y];
+        while (pixelsToCheck.length > 0) {
+            if (tickCount > 100000) {
+                break
+            }
+
+            const y = pixelsToCheck.pop();
+            const x = pixelsToCheck.pop();
+
+            if (pixel_valid(x, y, w, h)) {
+                const currentColor = pixelData.data[y * pixelData.width + x];
+                if (currentColor === targetColor) {
+                    ++tickCount;
+
+                    pixelsToCheck.push(x + 1, y);
+                    pixelsToCheck.push(x - 1, y);
+                    pixelsToCheck.push(x, y + 1);
+                    pixelsToCheck.push(x, y - 1);
+
+                    pixelData.data[y * pixelData.width + x] = fillColor;
+                }
+            }
+        }
+    }
+    ctx.putImageData(imageData, 0, 0);
+}
+
+function wait(delay = 0) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, delay);
+    });
+}
+
 /////////////////////// new style machine
 
 
@@ -627,7 +697,13 @@ const command_parsers = [
             end_command: new RepeatEndInstruction(repeats),
         }
     }),
+
+    new CommandParser(/fill with color (\d+) (\d+) (\d+)/).enter_with(flood, (r, g, b) => [
+        (255 << 24) | ((parseInt(b) & 0xff) << 16) | ((parseInt(g) & 0xff) << 8) | ((parseInt(r) & 0xff) << 0)
+    ]),
 ];
+
+// 0xFF0000FF
 
 class ParseCtx {
     constructor() {
