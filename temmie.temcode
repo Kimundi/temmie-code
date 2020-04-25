@@ -18,6 +18,8 @@ pick pen up
 turn 90 degree left
 run 60 pixel forward
 
+fill with color 255 255 255
+
 turn 35 degree right
 repeat this sublist 2 times:
     run 100 pixel forward
@@ -40,7 +42,9 @@ repeat this sublist 2 times:
     pick pen up
     
     turn 150 degree left
-    run 20 pixel forward
+    run 10 pixel forward
+    fill with color 255 255 255
+    run 10 pixel forward
     
     hold pen down
     
@@ -58,7 +62,9 @@ repeat this sublist 2 times:
     
     pick pen up
     
-    run 110 pixel forward
+    run 10 pixel forward
+    fill with color 255 200 200
+    run 100 pixel forward
 
     turn 110 degree right
 turn 105 degree right

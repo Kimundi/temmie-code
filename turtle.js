@@ -169,6 +169,9 @@ function reset() {
     draw();
 }
 
+const draw_off_x = -1;
+const draw_off_y = -18
+
 // Trace the forward motion of the turtle, allowing for possible
 // wrap-around at the boundaries of the canvas.
 function forward(distance) {
@@ -180,9 +183,6 @@ function forward(distance) {
     var minX = -imageContext.canvas.width / 2;
     var maxY = imageContext.canvas.height / 2;
     var minY = -imageContext.canvas.height / 2;
-
-    var draw_off_x = -1;
-    var draw_off_y = -18
 
     var x = turtle.pos.x + draw_off_x;
     var y = turtle.pos.y + draw_off_y;
@@ -364,7 +364,7 @@ function change_speed(speed) {
 }
 
 function flood(color) {
-    floodFill(imageContext, turtle.pos.x, turtle.pos.y, color);
+    floodFill(imageContext, turtle.pos.x + draw_off_x, turtle.pos.y + draw_off_y, color);
     drawIf();
 }
 
@@ -402,7 +402,7 @@ function floodFill(ctx, x, y, fillColor) {
         let tickCount = 0;
         const pixelsToCheck = [x, y];
         while (pixelsToCheck.length > 0) {
-            if (tickCount > 100000) {
+            if (tickCount > 1000) {
                 break
             }
 
@@ -412,7 +412,7 @@ function floodFill(ctx, x, y, fillColor) {
             if (pixel_valid(x, y, w, h)) {
                 const currentColor = pixelData.data[y * pixelData.width + x];
                 if (currentColor === targetColor) {
-                    ++tickCount;
+                    //++tickCount;
 
                     pixelsToCheck.push(x + 1, y);
                     pixelsToCheck.push(x - 1, y);
